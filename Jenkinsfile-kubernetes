@@ -44,7 +44,7 @@ spec:
         stage('checkout'){
             steps{
                 container('gradle'){
-                    git branch: 'main', url:'https://github.com/kshun1207/myspringboot.git'
+                    git branch: 'main', url:'https://github.com/kshun1207/myspringboot-nodb.git'
                 }
             }
         }
