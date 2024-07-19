@@ -1,0 +1,93 @@
+pipeline{
+    agent{
+        kubernetes{
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  nodeSelector:
+    role: jenkins-controller
+  containers:
+  - name: gradle
+    image: gradle:jdk21
+    command:
+    - sleep
+    args:
+    - infinity
+  - name: git 
+    image: alpine/git 
+    command: 
+    - sleep 
+    args: 
+    - infinity
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command:
+    - sleep
+    args:
+    - infinity
+    volumeMounts:
+    - name: registry-credentials
+      mountPath: /kaniko/.docker
+  volumes:
+  - name: registry-credentials
+    secret:
+      secretName: regcred
+      items:
+      - key: .dockerconfigjson
+        path: config.json
+            '''
+        }
+    }
+
+    stages{
+        stage('checkout'){
+            steps{
+                container('gradle'){
+                    git branch: 'main', url:'https://github.com/kshun1207/myspringboot.git'
+                }
+            }
+        }
+        stage('gradle-build'){
+            steps{
+                container('gradle'){
+                    sh 'cd myspringboot'
+                    sh 'gradle bootwar'
+                }
+            }
+        }
+        stage('image build, tag, push to docker hub'){
+            steps{
+                container('kaniko'){
+                    sh 'executor --context=dir://$WORKSPACE --destination=kshun1207/myspringboot:$BUILD_NUMBER --destination=kshun1207/myspringboot:latest'
+                }
+            }
+        }
+        stage('Update k8s menifest and push'){
+            environment{
+                githubUser = 'kshun1207' //Ryan Jang 
+                githubEmail = 'kshun1207@naver.com' //c1t1d0s7@example.com 
+                githubId = 'kshun1207' //c1t1d0s7  
+                githubRepo = 'myspringboot-cd' //jenkins-kube-deploy 
+                githubURL = "https://github.com/${githubId}/${githubRepo}.git" 
+                dockerhubId = 'kshun1207' //c1t1d0s7 
+                dockerhubRepo = 'myspringboot' //hello-world
+            }
+            steps{
+                container('git'){
+                    git branch: 'main', credentialsId: 'github-credential', url: "${githubURL}" 
+                    sh "git config --global --add safe.directory ${workspace}"
+                    sh "git config --global --add user.name ${githubUser}"
+                    sh "git config --global --add user.email ${githubEmail}"
+                    sh 'sed -i "s/image:.*/image: ${dockerhubId}\\/${dockerhubRepo}:${BUILD_NUMBER}/g" deployment.yaml'
+                    sh 'git add deployment.yaml'
+                    sh 'git commit -m "jenkins build number -> ${BUILD_NUMBER}"'
+                    withCredentials([gitUsernamePassword(credentialsId: 'github-credential', gitToolName: 'Default')]){
+                        sh 'git push --set-upstream origin main'
+                    }
+                }
+            }
+        }
+
+    }
+}
