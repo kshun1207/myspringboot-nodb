@@ -51,7 +51,6 @@ spec:
         stage('gradle-build'){
             steps{
                 container('gradle'){
-                    sh 'cd myspringboot-nodb'
                     sh 'gradle build'
                 }
             }
