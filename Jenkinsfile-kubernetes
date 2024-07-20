@@ -44,15 +44,14 @@ spec:
         stage('checkout'){
             steps{
                 container('gradle'){
-                    git branch: 'main', url:'https://github.com/kshun1207/myspringboot.git'
+                    git branch: 'main', url:'https://github.com/kshun1207/myspringboot-nodb.git'
                 }
             }
         }
         stage('gradle-build'){
             steps{
                 container('gradle'){
-                    sh 'cd myspringboot'
-                    sh 'gradle bootwar'
+                    sh 'gradle build'
                 }
             }
         }
